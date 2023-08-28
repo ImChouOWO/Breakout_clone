@@ -466,7 +466,19 @@ def main():
     pygame.quit()
 
 
+
+
+class Game:
+    def __init__(self,main) -> None:
+        self.main = main
+    def game_state(self):
+        self.main
+
+game = Game(main=main())
+
+
 if __name__ == "__main__":
   
-    main()
+    # main()
+    game.game_state()
     
