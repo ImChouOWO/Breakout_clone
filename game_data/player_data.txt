@@ -1,0 +1,1 @@
+turn:2,x_pos:317,fire_pos:[235, 65]
