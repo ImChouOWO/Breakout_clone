@@ -23,8 +23,13 @@ def load_scaled_image(path, scale_factor):
     image = pygame.image.load(path)
     return pygame.transform.scale(image, (int(image.get_width() * scale_factor), int(image.get_height() * scale_factor)))
 
+
+
+        
+        
+
 player_image = load_scaled_image(".\img\player.png", 0.1)
-bullet_image = load_scaled_image("./img/bullet_1.png", 0.1)
+bullet_image = load_scaled_image("./img/bullet_1.png", 0.06)
 
 # 玩家和子彈的設定
 player_rect = player_image.get_rect()
@@ -38,7 +43,7 @@ x_speed, y_speed = 8, 8
 bullets = []
 
 # 方塊的設定
-square_collision_counts = []
+
 spuare_pos = [0, 100, 200, 300, 400, 500, 600]
 all_square_list = []
 
@@ -47,6 +52,7 @@ current_turn = 0
 last_turn = 0
 continue_game = True
 
+square_index = 0
 
 # 定義Score類
 class Score:
@@ -62,12 +68,78 @@ class Score:
         text_surface = font.render(f"score: {self.score}", True, WHITE)
         text_rect = text_surface.get_rect(center=(340, 700))
         screen.blit(text_surface, text_rect)
-
     def reset(self):
         self.score = 0
         self.count = 0
 
 score = Score()
+
+def read_best_score():
+    global score
+    
+    f = open('./game_data/highscore.txt', 'r')
+    best_score = list(f.read())
+    f.close()
+    if len(best_score)<=0:
+        best_score =  0
+        if score.score > best_score:
+            best_score = score.score
+    else:
+        
+        tmp  = max([int(i) for i in best_score if i != '\n'])
+        if tmp >= score.score:
+            best_score = tmp
+        else:
+            best_score = score.score
+
+
+
+    best_score_font = pygame.font.SysFont(None, 36)
+    best_score_text_surface = best_score_font.render(f"best score: {best_score}", True, (255, 255, 255))
+    best_score_text_rect = best_score_text_surface.get_rect()
+    best_score_text_rect.centerx =100
+    best_score_text_rect.centery=700
+    screen.blit(best_score_text_surface, best_score_text_rect)
+
+
+
+class Square:
+    def __init__(self,count,pos,current_turn,index) -> None:
+        self.font_count = int(count)
+        self.rect = pygame.Rect(pos, -100, 80, 80)
+        self.turn = current_turn
+        self.pos = [self.rect.x,self.rect.y]
+        self.index = index
+        
+
+     
+
+    def draw(self):
+        font = pygame.font.SysFont(None, 36)
+        text_surface = font.render(str(self.font_count), True, (255, 255, 255))  # 白色數字
+        text_rect = text_surface.get_rect(center=self.rect.center)  # 文字位置設為方塊中心
+        screen.blit(text_surface, text_rect)
+        pygame.draw.rect(screen,(255,0,255),self.rect,width=6)  
+    def move(self):
+        self.rect.centery += 100   
+    def isCollisoin(self,check):
+        if check:
+            
+            self.font_count -=1
+    def wirte_destroied(self,turn):
+        
+        with open('./game_data/sqare_data_destroied.txt', 'a') as file:
+              file.write(f"index:{self.index},creat_turn:{self.turn},destory_turn:{turn},x_pos:{self.rect.x},y_pos:{self.rect.y}\n") 
+            
+    
+       
+        
+
+
+
+
+
+
 
 class Bullet:
     def __init__(self,image,pos_x,pos_y,x_speed,y_speed,start,pos) -> None:
@@ -103,7 +175,7 @@ class Bullet:
         screen.blit(self.image, self.rect)
 
     def move(self):
-        global squares,all_square_list,square_collision_counts,score,current_turn
+        global all_square_list,score,current_turn
         
         # math.sqrt() 平方根，畢氏定理
         distance = math.sqrt(self.diff_x**2 + self.diff_y**2)
@@ -127,32 +199,33 @@ class Bullet:
             self.y_speed *= -1
 
 
+
+        coollider_distance = 10
         # # 檢查子彈是否與方塊相交
-        for i, squares in enumerate(all_square_list):
-            for j, square in enumerate(squares):
-                if self.rect.colliderect(square):
-                    
-                   
-                  
-                    #反轉子彈速度
-                    if  abs(square.bottom - self.rect.top) <=10:
-                        self.y_speed *=-1
-                    if  abs(square.top - self.rect.bottom) <=10:
-                        self.y_speed *=-1
-                    if  abs(square.left - self.rect.right) <=10:
-                        self.x_speed *=-1
-                    if  abs(square.right - self.rect.left) <=10:
-                        self.x_speed *=-1
+        for square in all_square_list:
+            check = True
+            if self.rect.colliderect(square) and check:
+            #反轉子彈速度
+            
+                if  abs(square.rect.bottom - self.rect.top) <=coollider_distance:
+                    self.y_speed *=-1
+                if  abs(square.rect.top - self.rect.bottom) <=coollider_distance:
+                    self.y_speed *=-1
+                if  abs(square.rect.left - self.rect.right) <=coollider_distance:
+                    self.x_speed *=-1
+                if  abs(square.rect.right - self.rect.left) <=coollider_distance:
+                    self.x_speed *=-1 
+
+                square.isCollisoin(check) # 避免多次碰撞检查
+                check = False 
                     
 
-                    square_collision_counts[i][j] += 1
-                    if square_collision_counts[i][j] >= (i + 1):
-                        squares.remove(square)
-                        del square_collision_counts[i][j]
-                        score.count +=1
-                        score.score_chage(current_turn)
-                    break  # 避免多次碰撞检查
-
+                
+                if square.font_count <=0:
+                    square.wirte_destroied(current_turn)
+                    all_square_list.remove(square)
+                    score.score +=1*current_turn
+                
     def destroyed(self):
         if  self.rect.bottom >= screen_height:
             return True
@@ -163,14 +236,26 @@ class Bullet:
 move_counter = 0
 bullet_check = False
 can_fire = True
+fire_pos = []
+def wirte_player_data(turn,pos):
+    global player_rect
+    if pos != []:
+        with open('./game_data/player_data.txt', 'a') as file:
+            file.write(f"turn:{turn},x_pos:{player_rect.x},fire_pos:{pos}\n") 
 
 def change_turn():
-    global current_turn,last_turn,move_counter,player_rect,bullet_check,score,can_fire
+    global current_turn,last_turn,move_counter,player_rect,bullet_check,score,can_fire,fire_pos
     
     if current_turn != last_turn:
-        
         last_turn = current_turn
         move_counter = 0
+        for square in all_square_list:
+            square.move()
+        wirte_player_data(current_turn,fire_pos)
+
+
+
+
     if len(bullets)<=0 and bullet_check:
         current_turn += 1
         score.count = 0
@@ -188,74 +273,68 @@ def move_bullets():
         elif i >0 and bullets[i-1].moved_distance >=threshold_distance:
             bullets[i].move()
 
-
-
 def draw_square():
-   
-    global current_turn,last_turn,all_square_list,square_collision_counts
-   
-    square_list_tmp = []
-    square_list = []
+    global current_turn,last_turn,all_square_list,square_index
     random_numbers = random.sample(range(2, 6), 1)
   
     square_list_tmp = random.sample(spuare_pos, random_numbers[0])
-
     if current_turn != last_turn:
-        for pos in square_list_tmp:
-            tmp = pygame.Rect(pos, -100, 100, 100)
-            square_list.append(tmp)
-        all_square_list.append(square_list)
-        square_collision_counts.append([0] * len(square_list))
-        square_move()
-
-    # 創建字體對象
-    font = pygame.font.SysFont(None, 36)
-    
-    try:
-       
-        for i in range(current_turn):
-            for square in all_square_list[i]:
-                pygame.draw.rect(screen,(255,0,255),square,width=6)
-                
-                # 繪製方塊中的數字
-                text_surface = font.render(str(i+1), True, (255, 255, 255))  # 白色數字
-                text_rect = text_surface.get_rect(center=square.center)  # 文字位置設為方塊中心
-                screen.blit(text_surface, text_rect)
         
-    except:
-        pass
+        for pos in square_list_tmp:
+            
+            all_square_list.append(Square(count=current_turn,pos=pos,current_turn=current_turn,index=square_index))
+            
+            square_index +=1
+    for square in all_square_list:
+        square.draw()
+            
 
 
-def square_move():
+
+
+def is_game_over(game_sence):
     global all_square_list, bullets, continue_game, score
-    
-    already_written = False  # 用於追踪是否已經寫入
+    if game_sence:
+        already_written = False  # 用於追踪是否已經寫入
+        for square in all_square_list:
 
-    for i in range(current_turn):
-        for square in all_square_list[i]:
-            square.centery += 100
-            if square.centery >= 600:
+            if square.rect.centery >= 600:
+                
+                
                 continue_game = False
                 if not already_written:  # 只有在尚未寫入時才寫入
                     with open('./game_data/highscore.txt', 'a') as file:
-                        file.write(f"{score.score}\n")  # 新增文字到檔案末尾，前面的'\n'是換行符。
-                    score.reset()
+                        file.write(f"{score.score}\n")  # 新增文字到檔案末尾，前面的'\n'是換行符。   
                     already_written = True
+                    with open('./game_data/player_data.txt', 'a') as file:
+                        file.write(f"end\n") 
+                    with open('./game_data/sqare_data_destroied.txt', 'a') as file:
+                        file.write(f"end\n")
+                break
+             
+    
+    
+                
+                
+   
+    
+        
 
 
-def rest():
-    global player_rect,current_turn,last_turn,screen_width,bullet_rect,x_speed,y_speed,bullets,square_collision_counts,all_square_list,font_list,creat_square,move_counter,bullet_check,can_fire,score
+def reset():
+    global square_index,player_rect,current_turn,last_turn,screen_width,bullet_rect,x_speed,y_speed,bullets,all_square_list,font_list,creat_square,move_counter,bullet_check,can_fire,score
     player_rect.centerx = screen_width // 2
     player_rect.centery = 650
     player_rect.center = (player_rect.centerx/2,player_rect.centery)
-
+    
     bullet_rect.centerx = player_rect.centerx
     bullet_rect.centery = player_rect.centery
     x_speed = 8
     y_speed = 8
     bullets = [] 
 
-    square_collision_counts = []
+    square_index = 0
+    
   
     all_square_list = []
     font_list = []
@@ -272,7 +351,7 @@ def rest():
 
 
 def main():
-    global current_turn,last_turn,bullets,bullet_check,score,continue_game,can_fire
+    global current_turn,last_turn,bullets,bullet_check,score,continue_game,can_fire,fire_pos
     current_turn +=1
     clock = pygame.time.Clock()
     game_over = False
@@ -284,19 +363,24 @@ def main():
     
 
     while not game_over:
-            
+        is_game_over(continue_game)
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if can_fire:
+                    fire_pos = list(pygame.mouse.get_pos())
+                    if fire_pos[1]>630:
+                        fire_pos[1] = 630
                     for i in range(current_turn):
-                        bullets.append(Bullet(bullet_image,pos_x=player_rect.centerx,pos_y=player_rect.centery,x_speed=10,y_speed=10,start=(player_rect.x,player_rect.y),pos=pygame.mouse.get_pos()))
+                        bullets.append(Bullet(bullet_image,pos_x=player_rect.centerx,pos_y=player_rect.centery,x_speed=10,y_speed=10,start=(player_rect.x,player_rect.y),pos=fire_pos))
                     bullet_check = True  
                     can_fire = False            
             # checking if keydown event happened or not
             elif event.type == pygame.KEYDOWN:
-
+                if event.key == pygame.K_ESCAPE:
+                    continue_game = False
                 if event.key == pygame.K_a:
                     Left = True
 
@@ -324,26 +408,41 @@ def main():
                         bullets.remove(bullet)
             except:
                 pass
-            pos = pygame.mouse.get_pos()
+            pos = list(pygame.mouse.get_pos())
+            if pos[1]>630:
+                pos[1] = 630
+
             pygame.draw.line(screen,white,(player_rect.centerx+7,player_rect.centery),pos,width=5)
             screen.blit(player_image, player_rect)
-    
             draw_square()
-            
             score.draw_text()
+            read_best_score()
             change_turn()
         else:
-            rest()
+            
+            point = score.score
+            
 
             screen.fill(black)
             font = pygame.font.SysFont(None, 72)  # 使用較大的字體大小
-            game_over_surface = font.render("GAME OVER", True, (255, 255, 255))
-            game_over_rect = game_over_surface.get_rect(center=(screen_width // 2, screen_height // 2))
+            game_over_surface = font.render(f"GAME OVER", True, (255, 255, 255))
+            game_over_rect = game_over_surface.get_rect(center=(screen_width // 2, screen_height // 2-20))
             screen.blit(game_over_surface, game_over_rect)
+
+            font_3 = pygame.font.SysFont(None, 72)
+            game_over_surface_3 = font.render(f"SCORE:{point} ", True, (255, 255, 255))
+            game_over_rect_3 = game_over_surface_3.get_rect(center=(screen_width // 2, screen_height // 2 +50))
+            screen.blit(game_over_surface_3, game_over_rect_3)
+
+
+
             font_2 = pygame.font.SysFont(None,32)
             game_over_surface_2 = font_2.render("press R to retry or press ESC to exit",True,(255,255,255))
-            game_over_rect_2 = game_over_surface_2.get_rect(center=(screen_width // 2, screen_height // 2 + 50))
+            game_over_rect_2 = game_over_surface_2.get_rect(center=(screen_width // 2, screen_height // 2 + 110))
             screen.blit(game_over_surface_2, game_over_rect_2)
+            
+           
+            
             
 
 
@@ -352,6 +451,8 @@ def main():
                     pygame.quit()
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_r:
+                        score.reset()
+                        reset()
                         continue_game = True
                         
                     if event.key == pygame.K_ESCAPE:

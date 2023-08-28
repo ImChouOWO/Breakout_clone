@@ -1,0 +1,6 @@
+index:3,creat_turn:1,destory_turn:1,x_pos:0,y_pos:0
+index:3,creat_turn:1,destory_turn:1,x_pos:200,y_pos:0
+index:1,creat_turn:1,destory_turn:2,x_pos:100,y_pos:100
+index:1,creat_turn:1,destory_turn:1,x_pos:300,y_pos:0
+index:1,creat_turn:1,destory_turn:1,x_pos:100,y_pos:0
+index:4,creat_turn:1,destory_turn:1,x_pos:0,y_pos:0
